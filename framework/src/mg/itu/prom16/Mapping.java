@@ -1,4 +1,4 @@
-package mg.itu.mapping;
+package mg.itu.prom16;
 
 public class Mapping {
     private String className;
@@ -19,6 +19,10 @@ public class Mapping {
 
     @Override
     public String toString() {
-        return "Mapping{" + "className='" + className + '\'' + ", methodName='" + methodName + '\'' + '}';
+        return "Mapping{" +
+                "className='" + className + '\'' +
+                ", methodName='" + methodName + '\'' +
+                '}';
     }
 }
+
