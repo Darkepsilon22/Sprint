@@ -1,15 +1,17 @@
-## Les classes Java
+# Framework_sprint
+ 
+ Technologies necessaires :
+ - Java 17
+ - Tomcat 10
 
-Contenus dans le dossier src, voici les classes et leur fonctionnalités:
-- `FrontController`: cette classe modifier les fonctions suivantes:
-    -`getClassesInSpecificPackage`: prend les classes dans le chemin specifier par init param du fichier xml
-    -`scanner`: appel la fonction précédente et change la liste des controller ainsi que le boolean de vérification
-- `AnnotationController`: l'anotation des controllers
-- `TestController`: une classe qui à l'annotation des controllers
+ ## Déploiement
 
-## Les scripts
+ 1. Assurez-vous d'avoir les technologies nécessaires sur votre système.
+ 2. Clonez ce dépôt sur votre machine locale.
+ 3. Ouvire une invite de commande et naviguez jusqu'au répertoire racine du projet.
+ 4. Exécutez la commande suivante :
 
-Voici les scripts(.bat):
-
--`compilateur`: ceci compile tout les fichiers java dans src et les met dans le repertoire bin
--`deployement`: ceci deploi le projet framework vers le répertoire webapps de tomcat 
+    - **Pour Windows :**
+      ```batch
+      .\Framework\script\deployment.bat
+      ```
