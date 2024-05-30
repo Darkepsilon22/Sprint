@@ -5,11 +5,18 @@ import Annotations.*;
 @Controller
 public class Controller1 {
 
-    @Get(value = "/Controller1/method1")
-    public void method1() { }
+    @Get(value = "/helloWord")
+    public String helloWord() { 
+        return "Hello Word";
+    }
 
-    @Get
-    public void method2() { }
+    @Get(value = "/message")
+    public String message(String message) {
+        return message;
+    }
 
-    public void method3() { }
+    @Get(value = "/pageNotFound")
+    public int pageNotFound() {
+        return 404;
+    }
 }
