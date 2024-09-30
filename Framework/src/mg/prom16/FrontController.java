@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import com.google.gson.Gson;
 // import com.thoughtworks.paranamer.AdaptiveParanamer;
 // import com.thoughtworks.paranamer.Paranamer;
 
@@ -146,38 +147,53 @@ public class FrontController extends HttpServlet {
             
             try {
                 Object returnValue = invoke_Method(request, mapping.getClassName(), mapping.getMethod());
-                if (returnValue instanceof String) {
+            
+                if (mapping.getMethod().isAnnotationPresent(Restapi.class)) {
+                    Gson gson = new Gson();
+                    String jsonResponse;
+                
+                    if (returnValue instanceof ModelView) {
+                        ModelView modelView = (ModelView) returnValue;
+                        jsonResponse = gson.toJson(modelView.getData());
+                    } else {
+                        jsonResponse = gson.toJson(returnValue);
+                    }
+                
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
+                
+                    try (PrintWriter out = response.getWriter()) {
+                        out.print(jsonResponse);
+                        out.flush();
+                    }
+                } else if (returnValue instanceof String) {
                     if (((String) returnValue).startsWith("redirect")) {
                         String redirectUrl = ((String) returnValue).split(":")[1];
-                        
-                        RequestDispatcher dispatcher = request.getRequestDispatcher(redirectUrl);
-                        dispatcher.forward(request, response);
-                    }
-                    else{
+                        response.sendRedirect(redirectUrl); 
+                    } else {
                         try (PrintWriter out = response.getWriter()) {
-                            out.println("<p>Contenue de la methode <strong>"+mapping.method_to_string()+"</strong> : "+(String) returnValue+"</p>");
+                            out.println("<p>Contenu de la méthode <strong>" + mapping.method_to_string() + "</strong> : " + returnValue + "</p>");
                         }
                     }
                 } else if (returnValue instanceof ModelView) {
                     ModelView modelView = (ModelView) returnValue;
                     String viewUrl = modelView.getUrl();
                     HashMap<String, Object> data = modelView.getData();
-    
+                
                     for (Map.Entry<String, Object> entry : data.entrySet()) {
                         request.setAttribute(entry.getKey(), entry.getValue());
                     }
-    
+                
                     RequestDispatcher dispatcher = request.getRequestDispatcher(viewUrl);
                     dispatcher.forward(request, response);
-                    
                 } else if (returnValue == null) {
-                    throw new ServletException("La methode \""+mapping.method_to_string()+"\" retourne une valeur NULL");
+                    throw new ServletException("La méthode \"" + mapping.method_to_string() + "\" retourne une valeur NULL");
                 } else {
-                    throw new ServletException("Le type de retour de l'objet \""+returnValue.getClass().getName()+"\" n'est pas pris en charge par le Framework");
+                    throw new ServletException("Le type de retour de l'objet \"" + returnValue.getClass().getName() + "\" n'est pas pris en charge par le Framework");
                 }
-    
+                            
             } catch (NoSuchMethodException | IOException e) {
-                throw new ServletException("Erreur lors de l'invocation de la methode \""+mapping.method_to_string()+"\"", null);
+                throw new ServletException("Erreur lors de l'invocation de la méthode \"" + mapping.method_to_string() + "\"", e);
             }
         } else {
             throw new ServletException("Pas de methode Get associer a l'URL: \"" + url +"\"");
