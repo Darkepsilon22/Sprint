@@ -22,6 +22,7 @@ public class FrontController extends HttpServlet {
     protected List<Class<?>> list_controller = new ArrayList<>();
     protected Map<String, Mapping> urlMappings = new HashMap<>();
 
+    // Method to get the list of controllers
     protected void getControllerList(String package_name) throws ServletException, ClassNotFoundException {
         String bin_path = "WEB-INF/classes/" + package_name.replace(".", "/");
         bin_path = getServletContext().getRealPath(bin_path);
@@ -35,14 +36,33 @@ public class FrontController extends HttpServlet {
                     list_controller.add(clazz);
 
                 for (Method method : clazz.getMethods()) {
+                    // Handle @Get and @Post, and set default to @Get if none is present
                     if (method.isAnnotationPresent(Get.class)) {
                         Mapping mapping = new Mapping(clazz.getName(), method);
-                        // String key = "/"+clazz.getSimpleName()+"/"+method.getName();   
                         String key = method.getAnnotation(Get.class).value();  
                         if (urlMappings.containsKey(key)) {
-                            throw new ServletException("La methode '"+urlMappings.get(key).getMethod().getName()+"' possede deja l'URL '"+key+"' comme annotation, donc elle ne peux pas etre assigner a la methode '"+mapping.getMethod().getName()+"'");
+                            throw new ServletException("La méthode '" + urlMappings.get(key).getMethod().getName() +
+                                    "' possède déjà l'URL '" + key + "' comme annotation, donc elle ne peut pas être assignée à la méthode '" +
+                                    mapping.getMethod().getName() + "'");
                         } else {
                             urlMappings.put(key, mapping);
+                        }
+                    } else if (method.isAnnotationPresent(Post.class)) {
+                        Mapping mapping = new Mapping(clazz.getName(), method);
+                        String key = method.getAnnotation(Post.class).value();
+                        if (urlMappings.containsKey(key)) {
+                            throw new ServletException("La méthode '" + urlMappings.get(key).getMethod().getName() +
+                                    "' possède déjà l'URL '" + key + "' comme annotation, donc elle ne peut pas être assignée à la méthode '" +
+                                    mapping.getMethod().getName() + "'");
+                        } else {
+                            urlMappings.put(key, mapping);
+                        }
+                    } else {
+                        // Default to @Get if no @Get or @Post annotation is found
+                        Mapping mapping = new Mapping(clazz.getName(), method);
+                        String key = "/" + clazz.getSimpleName() + "/" + method.getName();  // Construct a default URL
+                        if (!urlMappings.containsKey(key)) {
+                            urlMappings.put(key, mapping); // Map the URL to the method
                         }
                     }
                 }
@@ -61,9 +81,6 @@ public class FrontController extends HttpServlet {
     
             Enumeration<String> params = request.getParameterNames();
             Map<String, String> paramMap = new HashMap<>();
-
-            // Paranamer paranamer = new AdaptiveParanamer();
-            // String[] parameterMethodNames = paranamer.lookupParameterNames(method);
     
             while (params.hasMoreElements()) {
                 String paramName = params.nextElement();
@@ -91,13 +108,6 @@ public class FrontController extends HttpServlet {
                     String paramValue = paramMap.get(paramName);
                     args[i] = paramValue;
                 } else {
-
-                    // if (paramMap.containsKey(parameterMethodNames[i])) {
-                    //     args[i] = paramMap.get(parameterMethodNames[i]);
-                    // } else {
-                    //     args[i] = null;
-                    // }
-
                     if (paramMap.containsKey(methodParams[i].getName())) {
                         args[i] = paramMap.get(methodParams[i].getName());
                     } else {
@@ -123,7 +133,7 @@ public class FrontController extends HttpServlet {
             String package_name = "controllerPackage"; 
             String pack = getServletContext().getInitParameter(package_name);
             if (pack == null) {
-                throw new ServletException("Le package \""+package_name+"\" n'est pas reconnu.");
+                throw new ServletException("Le package \"" + package_name + "\" n'est pas reconnu.");
             } else {
                 getControllerList(pack);
             }
@@ -141,10 +151,6 @@ public class FrontController extends HttpServlet {
         Mapping mapping = urlMappings.get(url);
 
         if (mapping != null) {
-            // out.println("<p><strong>URL :</strong> " + url +"</p>");
-            // out.println("<p><strong>Assosier a :</strong> " + mapping+"</p>");
-            //out.println("<p>Contenue de la methode <strong>"+mapping.getMethodName()+"</strong> : "+invoke_Method(mapping.getClassName(), mapping.getMethodName())+"</p>");
-            
             try {
                 Object returnValue = invoke_Method(request, mapping.getClassName(), mapping.getMethod());
             
@@ -196,7 +202,7 @@ public class FrontController extends HttpServlet {
                 throw new ServletException("Erreur lors de l'invocation de la méthode \"" + mapping.method_to_string() + "\"", e);
             }
         } else {
-            throw new ServletException("Pas de methode Get associer a l'URL: \"" + url +"\"");
+            throw new ServletException("Pas de méthode associée à l'URL: \"" + url +"\"");
         }
     }
 
