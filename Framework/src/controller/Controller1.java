@@ -55,7 +55,7 @@ public class Controller1 {
     // }
 
     @Restapi
-    @Get(value = "/listemploye")
+    @Get(value = "/liste")
     public ModelView list_employe() {
         ModelView mv = new ModelView();
 

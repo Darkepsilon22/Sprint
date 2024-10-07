@@ -229,9 +229,12 @@ public class FrontController extends HttpServlet {
             } catch (NoSuchMethodException | IOException e) {
                 throw new ServletException("Erreur lors de l'invocation de la méthode \"" + mapping.getMethod() + "\"", e);
             }
-        }else {
-            // Lever une ServletException avec un message détaillant l'URL non associée
-            throw new ServletException("Pas de méthode associée à l'URL: \"" + url + "\"");
+        } else {
+            // Afficher une page d'erreur pour l'URL non associée
+            request.setAttribute("message", "Pas de méthode associée à l'URL: \"" + url + "\"");
+            request.setAttribute("code", "404 ERROR NOT FOUND");
+            RequestDispatcher dispatcher = request.getRequestDispatcher("/views/ErrorPage.jsp");
+            dispatcher.forward(request, response);
         }
         
     }
