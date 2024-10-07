@@ -236,6 +236,7 @@ public class FrontController extends HttpServlet {
             RequestDispatcher dispatcher = request.getRequestDispatcher("/views/ErrorPage.jsp");
             dispatcher.forward(request, response);
         }
+        
     }
 
     public ModelView handleUnsupportedMethod(String requestMethod, String url) {
