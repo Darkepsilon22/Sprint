@@ -8,12 +8,12 @@ import java.util.List;
 public class Mapping {
     private String className;
     private Method method;
-    private List<String> verbActions; // New field for verb actions
+    private List<String> verbActions;
 
     public Mapping(String className, Method method, List<String> verbActions) {
         this.className = className;
         this.method = method;
-        this.verbActions = verbActions; // Initialize the verb actions
+        this.verbActions = verbActions;
     }
 
     public String getClassName() {
@@ -25,7 +25,7 @@ public class Mapping {
     }
 
     public List<String> getVerbActions() {
-        return verbActions; // Getter for verb actions
+        return verbActions;
     }
 
     @Override
@@ -33,7 +33,7 @@ public class Mapping {
         return "Mapping{" +
                 "className='" + className + '\'' +
                 ", methodName='" + method.getName() + '\'' +
-                ", verbActions=" + verbActions + // Include verb actions in toString
+                ", verbActions=" + verbActions + 
                 '}';
     }
 
@@ -54,7 +54,6 @@ public class Mapping {
         return methodString.toString();
     }
 
-    // Méthode pour ajouter des verbes (facultatif)
     public void addVerbAction(String verb) {
         if (this.verbActions == null) {
             this.verbActions = new ArrayList<>();

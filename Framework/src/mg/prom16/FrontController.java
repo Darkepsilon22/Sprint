@@ -25,7 +25,6 @@ public class FrontController extends HttpServlet {
    
 
 
-    // Method to get the list of controllers
     protected void getControllerList(String package_name) throws ServletException, ClassNotFoundException {
         String bin_path = "WEB-INF/classes/" + package_name.replace(".", "/");
         bin_path = getServletContext().getRealPath(bin_path);
@@ -39,9 +38,8 @@ public class FrontController extends HttpServlet {
                     list_controller.add(clazz);
 
                 for (Method method : clazz.getMethods()) {
-                    List<String> verbActions = new ArrayList<>(); // List to hold verb actions
+                    List<String> verbActions = new ArrayList<>(); 
 
-                    // Handle @Get and @Post, and set default to @Get if none is present
                     if (method.isAnnotationPresent(Get.class)) {
                         verbActions.add("GET");
 
@@ -67,11 +65,11 @@ public class FrontController extends HttpServlet {
                             urlMappings.put(key, mapping);
                         }
                     } if (verbActions.isEmpty()) {
-                        verbActions.add("GET"); // Default to GET
+                        verbActions.add("GET");
                         Mapping mapping = new Mapping(clazz.getName(), method, verbActions);
-                        String key = "/" + clazz.getSimpleName() + "/" + method.getName();  // Construct a default URL
+                        String key = "/" + clazz.getSimpleName() + "/" + method.getName();
                         if (!urlMappings.containsKey(key)) {
-                            urlMappings.put(key, mapping); // Map the URL to the method
+                            urlMappings.put(key, mapping);
                         }
                     }
                 }
@@ -160,12 +158,10 @@ public class FrontController extends HttpServlet {
         Mapping mapping = urlMappings.get(url);
     
         if (mapping != null) {
-            String requestMethod = request.getMethod(); // Récupérer la méthode HTTP utilisée
+            String requestMethod = request.getMethod();
     
-            // Vérifier si la méthode HTTP est autorisée pour cette URL
             if (!mapping.getVerbActions().contains(requestMethod)) {
-                // Rediriger vers une page d'erreur ou utiliser la méthode `handleUnsupportedMethod()`
-                ModelView mv = handleUnsupportedMethod(requestMethod, url); // Passez les paramètres nécessaires
+                ModelView mv = handleUnsupportedMethod(requestMethod, url);
                 String viewUrl = mv.getUrl();
                 HashMap<String, Object> data = mv.getData();
             
@@ -182,7 +178,6 @@ public class FrontController extends HttpServlet {
             try {
                 Object returnValue = invoke_Method(request, mapping.getClassName(), mapping.getMethod());
     
-                // Vérifier si l'annotation Restapi est présente pour une réponse JSON
                 if (mapping.getMethod().isAnnotationPresent(Restapi.class)) {
                     Gson gson = new Gson();
                     String jsonResponse;
@@ -229,18 +224,23 @@ public class FrontController extends HttpServlet {
             } catch (NoSuchMethodException | IOException e) {
                 throw new ServletException("Erreur lors de l'invocation de la méthode \"" + mapping.getMethod() + "\"", e);
             }
+            
         } else {
-            // Afficher une page d'erreur pour l'URL non associée
-            request.setAttribute("message", "Pas de méthode associée à l'URL: \"" + url + "\"");
-            request.setAttribute("code", "404 ERROR NOT FOUND");
-            RequestDispatcher dispatcher = request.getRequestDispatcher("/views/ErrorPage.jsp");
-            dispatcher.forward(request, response);
-        }
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
+            response.setContentType("text/html; charset=UTF-8"); 
+            response.getWriter().write("<html><head><title>Erreur 404</title></head><body>");
+            response.getWriter().write("<h1>Erreur 404</h1>");
+            response.getWriter().write("<p>Pas de méthode associée à l'URL: \"" + url + "\".</p>");
+            response.getWriter().write("<p>Veuillez vérifier l'URL et réessayer.</p>");
+            response.getWriter().write("</body></html>");        }
+       
+        
+        
     }
 
     public ModelView handleUnsupportedMethod(String requestMethod, String url) {
         ModelView mv = new ModelView();
-        mv.setUrl("/views/TestVerb.jsp"); // Redirige vers la page de gestion des méthodes non supportées
+        mv.setUrl("/views/TestVerb.jsp");
         mv.addObject("message", "La méthode HTTP \"" + requestMethod + "\" n'est pas autorisée pour cette URL: \"" + url + "\".");
         return mv;
     }
