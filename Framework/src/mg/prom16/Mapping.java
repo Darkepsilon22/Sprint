@@ -1,11 +1,15 @@
 package mg.prom16;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+// import com.thoughtworks.paranamer.AdaptiveParanamer;
+// import com.thoughtworks.paranamer.Paranamer;
 
 public class Mapping {
+    Set<Verb> verbs;
+
+    public Mapping(){
+        this.verbs = new HashSet<Verb>();
     private String className;
     private Method method;
     private List<String> verbActions;
@@ -16,15 +20,20 @@ public class Mapping {
         this.verbActions = verbActions;
     }
 
-    public String getClassName() {
-        return className;
+    public void setVerbs(Set<Verb> verbs) {
+        this.verbs = verbs;
     }
 
-    public Method getMethod() {
-        return method;
+    public Set<Verb> getVerbs() {
+        return verbs;
     }
 
-    public List<String> getVerbActions() {
+    public void addVerb(Verb verb) throws Exception {
+        for (Verb v : verbs) {
+            if (v.getVerbAction().equalsIgnoreCase(verb.getVerbAction())) {
+                throw new Exception("Conflit de verbe.");
+
+              public List<String> getVerbActions() {
         return verbActions;
     }
 
@@ -49,15 +58,18 @@ public class Mapping {
                 methodString.append(", ");
             }
         }
-
-        methodString.append(")");
-        return methodString.toString();
+        verbs.add(verb);
     }
 
+    public Verb getByAction(String verbAction) {
+        for (Verb v : verbs) {
+            if (v.getVerbAction().equalsIgnoreCase(verbAction)) {
+                return v;
+            }
     public void addVerbAction(String verb) {
         if (this.verbActions == null) {
             this.verbActions = new ArrayList<>();
         }
-        this.verbActions.add(verb);
+        return null;
     }
 }
