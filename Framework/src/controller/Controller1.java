@@ -1,51 +1,46 @@
 package controller;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Vector;
 
 import Annotations.*;
+import jakarta.servlet.http.Part;
 import mg.prom16.ModelView;
+import mg.prom16.MySession;
 import models.Employe;
-import java.util.List;
 
 @Controller
 public class Controller1 {
 
-    // @Post(value = "/message")
-    // public String get_message(String message) {
-    //     System.out.println("Message reçu : " + message); // Log
-    //     return message;
-    // }
+    @Get
+    @Url(value = "/message")
+    public String get_message(String message) {
+        return message;
+    }
 
-    // @Post(value = "/saveEmploye")
-    // public ModelView saveEmploye(@RequestBody Employe employe) {
-    //     System.out.println("Tentative d'enregistrement de l'employé : " + employe); // Log
-    //     ModelView mv = new ModelView();
-    //     if (employe.getNom() == null || employe.getPrenom() == null) {
-    //         mv.setUrl("/views/ErrorPage.jsp");
-    //         mv.addObject("message", "Erreur : Les informations de l'employé sont incomplètes.");
-    //         return mv;
-    //     }
-    //     mv.setUrl("/views/Employe.jsp");
-    //     mv.addObject("employe", employe);
-    //     return mv;
-    // }
+    @Get
+    @Url(value = "/pageNotFound")
+    public ModelView pageNotFound() { 
+        ModelView modelView = new ModelView();
+        modelView.setUrl("/views/ErrorPage.jsp");
+        modelView.addObject("message", "Page Not Found");
+        modelView.addObject("code", 404);
+        return modelView;
+    }
 
-    // @Get(value = "/pageNotFound")
-    // public ModelView pageNotFound() {
-    //     ModelView modelView = new ModelView();
-    //     modelView.setUrl("/views/ErrorPage.jsp");
-    //     modelView.addObject("message", "Page Not Found");
-    //     modelView.addObject("code", 404);
-    //     return modelView;
-    // }
-
-    // @Get(value = "/date")
-    // public java.util.Date get_Date() {
-    //     return new java.util.Date();
-    // }
+    @Get
+    @Url(value = "/date")
+    public java.util.Date get_Date() {
+        return new java.util.Date();
+    }
 
     // @Get(value = "/employe")
-    // public ModelView get_employe(@Param(name = "id") String id, @Param(name = "nom") String nom, @Param(name = "prenom") String prenom) {
+    // public ModelView get_employe(@Param(name = "id")String id, @Param(name = "nom")String nom, @Param(name = "prenom")String prenom){
     //     ModelView mv = new ModelView();
     //     mv.setUrl("/views/Employe.jsp");
     //     mv.addObject("id", id);
@@ -54,59 +49,55 @@ public class Controller1 {
     //     return mv;
     // }
 
+
+    @Get
+    @Url(value = "/employe")
+    public ModelView get_employe(@RequestBody Employe employe) {
+        ModelView mv = new ModelView();
+        mv.setUrl("/views/Employe.jsp");
+        mv.addObject("employe", employe);
+        return mv;
+    }
+
     @Restapi
-    @Get(value = "/liste")
+    @Get
+    @Url(value = "/listemploye")
     public ModelView list_employe() {
         ModelView mv = new ModelView();
+        // mv.setUrl("/views/ListEmploye.jsp");
 
         Employe employe1 = new Employe();
         employe1.setId("1");
-        employe1.setNom("Rakotoarison");
-        employe1.setPrenom("Carine");
 
         Employe employe2 = new Employe();
         employe2.setId("2");
-        employe2.setNom("Rakotoarison");
-        employe2.setPrenom("Yohan");
 
         Vector<Employe> listEmploye = new Vector<>();
         listEmploye.add(employe1);
         listEmploye.add(employe2);
 
         mv.addObject("listemploye", listEmploye);
-        System.out.println("Liste des employés retournée : " + listEmploye); // Log
         return mv;
     }
 
     @Restapi
-    @Get(value = "/yohan")
-    public Employe get_Employe() {
+    @Url(value = "/yohan")
+    public Employe get_Employe(){
         Employe employe2 = new Employe();
         employe2.setId("2");
         employe2.setNom("Rakotoarison");
         employe2.setPrenom("Yohan");
 
-        System.out.println("Employé Yohan retourné : " + employe2); // Log
         return employe2;
     }
-    
-    @Get(value = "/get")
-    public ModelView testVerb() {
-        ModelView mv = new ModelView();
-        mv.setUrl("/views/TestVerb.jsp");
-        mv.addObject("message", "Cette méthode est appelée avec la méthode GET.");
-        return mv;
+
+    @Post
+    @Url("/uploadImage")
+    public ModelView uploadImage(MySession mySession, @FileParam("imageFile") String imageFilePath) throws IOException {
+
+        ModelView modelView = new ModelView();
+        modelView.setUrl("/views/uploadSuccess.jsp");
+        modelView.addObject("fileName", imageFilePath);
+        return modelView;
     }
-
-    @Post(value = "/testVerbPost")
-    public ModelView testVerbPost() {
-        ModelView mv = new ModelView();
-        mv.setUrl("/views/TestVerb.jsp");
-        mv.addObject("message", "Cette méthode est appelée avec la méthode POST.");
-        return mv;
-    }
-
-    
-
-  
 }
