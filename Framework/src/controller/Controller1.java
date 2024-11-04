@@ -77,6 +77,9 @@ public class Controller1 {
         listEmploye.add(employe2);
 
         mv.addObject("listemploye", listEmploye);
+
+        System.out.println("Liste des employés retournée : " + listEmploye);
+
         return mv;
     }
 
