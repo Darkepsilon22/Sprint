@@ -1,14 +1,31 @@
 package models;
 
 import Annotations.FormParam;
+import Annotations.validation.Required;
+import Annotations.validation.TypeDate;
+import Annotations.validation.TypeNumber;
 
 public class Employe {
+
+    @Required
+    @TypeNumber(message = "L'ID doit être un nombre.")
     @FormParam("id")
     private String id;
     
+    @Required(message = "Le nom est requis.")
     @FormParam("nom")
     private String nom;
+
+    @TypeDate(message = "La date d'embauche doit être au format 'yyyy-MM-dd'.")
+    @FormParam("date-embauche")
+    private String dateEmbauche;
     
+    public String getDateEmbauche() {
+        return dateEmbauche;
+    }
+    public void setDateEmbauche(String dateEmbauche) {
+        this.dateEmbauche = dateEmbauche;
+    }
     @FormParam("prenom")
     private String prenom;
 

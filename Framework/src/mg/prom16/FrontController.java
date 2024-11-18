@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import Annotations.*;
+import Annotations.validation.*;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -18,6 +19,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
+import java.text.DateFormat;  
+import java.text.SimpleDateFormat;  
 
 import com.google.gson.Gson;
 // import com.thoughtworks.paranamer.AdaptiveParanamer;
@@ -52,21 +55,6 @@ public class FrontController extends HttpServlet {
                         // Si ni GET ni POST ne sont présents, on associe par défaut à GET
                         if (!isGetPresent && !isPostPresent) {
                             isGetPresent = true; // Par défaut GET
-
-                    List<String> verbActions = new ArrayList<>(); 
-
-                    if (method.isAnnotationPresent(Get.class)) {
-                        verbActions.add("GET");
-
-                        Mapping mapping = new Mapping(clazz.getName(), method, verbActions);
-                    String key = method.getAnnotation(Get.class).value(); 
-                        if (urlMappings.containsKey(key)) {
-                            throw new ServletException("La méthode '" + urlMappings.get(key).getMethod().getName() +
-                                    "' possède déjà l'URL '" + key + "' comme annotation, donc elle ne peut pas être assignée à la méthode '" +
-                                    mapping.getMethod().getName() + "'");
-                        } else {
-                            urlMappings.put(key, mapping);
-
                         }
     
                         // Gérer les verbes HTTP GET et POST
@@ -75,12 +63,6 @@ public class FrontController extends HttpServlet {
                         }
                         if (isPostPresent) {
                             addMapping(url, clazz, method, "POST");
-                    } if (verbActions.isEmpty()) {
-                        verbActions.add("GET");
-                        Mapping mapping = new Mapping(clazz.getName(), method, verbActions);
-                        String key = "/" + clazz.getSimpleName() + "/" + method.getName();
-                        if (!urlMappings.containsKey(key)) {
-                            urlMappings.put(key, mapping);
                         }
                     }
                 }
@@ -112,9 +94,44 @@ public class FrontController extends HttpServlet {
         }
     }
     
+    private void validateField(Field field, String fieldValue, String paramName, List<Map<String, String>> errors) {
+        if (field.isAnnotationPresent(Required.class) && (fieldValue == null || fieldValue.isEmpty())) {
+            Map<String, String> error = new HashMap<>();
+            error.put("champ", paramName);
+            error.put("message", field.getAnnotation(Required.class).message());
+            errors.add(error);
+        } else if (field.isAnnotationPresent(TypeNumber.class) && fieldValue != null) {
+            try {
+                if (!fieldValue.equals("")) {
+                    Double.valueOf(fieldValue.toString());
+                }
+            } catch (NumberFormatException e) {
+                Map<String, String> error = new HashMap<>();
+                error.put("champ", paramName);
+                error.put("message", field.getAnnotation(TypeNumber.class).message());
+                errors.add(error);
+            }
+        } else if (field.isAnnotationPresent(TypeDate.class) && fieldValue != null ) {
+            DateFormat dateFormat = new SimpleDateFormat(field.getAnnotation(TypeDate.class).pattern());
+            dateFormat.setLenient(false);
+            try {
+                if (!fieldValue.equals("")) {
+                    dateFormat.parse(fieldValue);
+                }
+            } catch (Exception e) {
+                Map<String, String> error = new HashMap<>();
+                error.put("champ", paramName);
+                error.put("message", field.getAnnotation(TypeDate.class).message());
+                errors.add(error);
+            }
+        }
+        
+    }
 
-    protected Object invoke_Method(HttpServletRequest request, Mapping mapping) throws IOException, NoSuchMethodException, ServletException {
+
+    protected Object invoke_Method(HttpServletRequest request, HttpServletResponse response, Mapping mapping) throws IOException, NoSuchMethodException, ServletException {
         Object returnValue = null;
+        List<Map<String, String>> validationErrors = new ArrayList<>();
         try {
             Verb verb = mapping.getByAction(request.getMethod());
             Class<?> clazz = Class.forName(verb.getClassName());
@@ -145,10 +162,14 @@ public class FrontController extends HttpServlet {
                     Object paramObject = paramType.getDeclaredConstructor().newInstance();
                     for (Field field : paramType.getDeclaredFields()) {
                         String paramName = field.isAnnotationPresent(FormParam.class) ? field.getAnnotation(FormParam.class).value() : field.getName();
-                        if (paramMap.containsKey(paramName)) {
+                        // if (paramMap.containsKey(paramName)) {
                             field.setAccessible(true);
-                            field.set(paramObject, paramMap.get(paramName));
-                        }
+                            // String fieldValue = paramMap.get(paramName);
+                            String fieldValue = request.getParameter(paramName);;
+                            field.set(paramObject, fieldValue);
+
+                            validateField(field, fieldValue, paramName, validationErrors);
+                        // }
                     }
                     args[i] = paramObject;
                 } else if (methodParams[i].isAnnotationPresent(Param.class)) {
@@ -160,16 +181,16 @@ public class FrontController extends HttpServlet {
                     Part part = request.getPart(partName);
             
                     String fileName = part.getSubmittedFileName();
-                    String uploadDir = getServletContext().getRealPath("/uploads/");
+                    String uploadDir = getServletContext().getRealPath("") + File.separator + "uploads";
                     File uploadDirFile = new File(uploadDir);
                     
                     if (!uploadDirFile.exists()) {
                         uploadDirFile.mkdirs();
                     }
 
-                    Path filePath = Paths.get(uploadDir, fileName);
+                    File file = new File(uploadDir, fileName);
                     try (InputStream fileContent = part.getInputStream()) {
-                        Files.copy(fileContent, filePath);
+                        Files.copy(fileContent, file.toPath());
                     }
 
                     String relativeFilePath = "uploads/" + fileName;
@@ -187,6 +208,16 @@ public class FrontController extends HttpServlet {
                     } else {
                         args[i] = null;
                     }
+                }
+            }
+
+            if (!validationErrors.isEmpty()) {
+                response.setContentType("application/json");
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                try (PrintWriter out = response.getWriter()) {
+                    Gson gson = new Gson();
+                    String jsonErrors = gson.toJson(validationErrors);
+                    out.print(jsonErrors);
                 }
             }
     
@@ -230,29 +261,7 @@ public class FrontController extends HttpServlet {
                 //out.println("<p>Contenue de la methode <strong>"+mapping.getMethodName()+"</strong> : "+invoke_Method(mapping.getClassName(), mapping.getMethodName())+"</p>");
                 
                 try {
-                    Object returnValue = invoke_Method(request, mapping);
-
-            String requestMethod = request.getMethod();
-    
-            if (!mapping.getVerbActions().contains(requestMethod)) {
-                ModelView mv = handleUnsupportedMethod(requestMethod, url);
-                String viewUrl = mv.getUrl();
-                HashMap<String, Object> data = mv.getData();
-            
-                for (Map.Entry<String, Object> entry : data.entrySet()) {
-                    request.setAttribute(entry.getKey(), entry.getValue());
-                }
-            
-                RequestDispatcher dispatcher = request.getRequestDispatcher(viewUrl);
-                dispatcher.forward(request, response);
-                return;
-            }
-            
-    
-            try {
-                Object returnValue = invoke_Method(request, mapping.getClassName(), mapping.getMethod());
-    
-                if (mapping.getMethod().isAnnotationPresent(Restapi.class)) {
+                    Object returnValue = invoke_Method(request, response, mapping);
                     Gson gson = new Gson();
                     if (verb.getMethod().isAnnotationPresent(Restapi.class)) {
                         response.setContentType("application/json");
@@ -314,27 +323,6 @@ public class FrontController extends HttpServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND,"Pas de methode associee a l'URL: \"" + url + "\" pour la methode HTTP: " + request.getMethod());
         }
     }
-
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
-            response.setContentType("text/html; charset=UTF-8"); 
-            response.getWriter().write("<html><head><title>Erreur 404</title></head><body>");
-            response.getWriter().write("<h1>Erreur 404</h1>");
-            response.getWriter().write("<p>Pas de méthode associée à l'URL: \"" + url + "\".</p>");
-            response.getWriter().write("<p>Veuillez vérifier l'URL et réessayer.</p>");
-            response.getWriter().write("</body></html>");        }
-       
-        
-        
-    }
-
-    public ModelView handleUnsupportedMethod(String requestMethod, String url) {
-        ModelView mv = new ModelView();
-        mv.setUrl("/views/TestVerb.jsp");
-        mv.addObject("message", "La méthode HTTP \"" + requestMethod + "\" n'est pas autorisée pour cette URL: \"" + url + "\".");
-        return mv;
-    }
-    
-    
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)

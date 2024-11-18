@@ -18,8 +18,8 @@ public class UserController {
         if ("admin".equals(username) && "admin".equals(password)) {
             mySession.add("username", username);
             List<String> userData = new ArrayList<>();
-            userData.add("Fanomezantsoa");
-            userData.add("MAHAFALIARIMBOLA");
+            userData.add("Yohan");
+            userData.add("RAKOTOARISON");
             mySession.add("userData", userData);
         //     return "redirect:/userInfo";
         // } else {

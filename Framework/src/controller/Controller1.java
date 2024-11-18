@@ -1,15 +1,9 @@
 package controller;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Vector;
 
 import Annotations.*;
-import jakarta.servlet.http.Part;
 import mg.prom16.ModelView;
 import mg.prom16.MySession;
 import models.Employe;
@@ -68,18 +62,21 @@ public class Controller1 {
 
         Employe employe1 = new Employe();
         employe1.setId("1");
+        employe1.setNom("RAKOTOARISON");
+        employe1.setPrenom("Yohan");
 
         Employe employe2 = new Employe();
         employe2.setId("2");
+        employe2.setNom("RAKOTOARISON");
+        employe2.setPrenom("Carine");
 
+   
+        
         Vector<Employe> listEmploye = new Vector<>();
         listEmploye.add(employe1);
         listEmploye.add(employe2);
 
         mv.addObject("listemploye", listEmploye);
-
-        System.out.println("Liste des employés retournée : " + listEmploye);
-
         return mv;
     }
 
@@ -88,7 +85,7 @@ public class Controller1 {
     public Employe get_Employe(){
         Employe employe2 = new Employe();
         employe2.setId("2");
-        employe2.setNom("Rakotoarison");
+        employe2.setNom("RAKOTOARISON");
         employe2.setPrenom("Yohan");
 
         return employe2;
