@@ -7,7 +7,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.net.URL;
-import java.nio.Buffer;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -28,27 +27,25 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Part;
 import jakarta.servlet.annotation.MultipartConfig;
 
+
+
+
 import mg.itu.utils.Scanner;
-import mg.itu.utils.TimestampAdapter;
 import mg.itu.utils.Mapping;
 import mg.itu.utils.ModelView;
 import mg.itu.utils.MySession;
 import mg.itu.utils.FileMap;
-import mg.itu.utils.JsonReader;
+
 import mg.itu.utils.exception.*;
-import mg.itu.utils.Exportation;
 
 import mg.itu.annotation.Param;
-import mg.itu.annotation.RequestBody;
 import mg.itu.annotation.RestAPI;
 import mg.itu.annotation.IfError;
 import mg.itu.annotation.Authentification;
 import mg.itu.annotation.type.*;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 
 @MultipartConfig
 public class FrontController extends HttpServlet {
@@ -63,7 +60,6 @@ public class FrontController extends HttpServlet {
         visited = false;
         String controllPackage = this.getInitParameter("controllPackage");
         authSessionName = this.getInitParameter("authSessionName");
-        TimestampAdapter.setSdf(this.getInitParameter("formatDate"));
         try {
             this.urlMap = Scanner.scanMethod(controllPackage);
             this.urlView = Scanner.scanView("../..");
@@ -71,6 +67,7 @@ public class FrontController extends HttpServlet {
             message = "Erreur au niveau du build du projet. Veuillez consulter votre terminal";
             e.printStackTrace();
         }
+
     }
 
     protected void doGet(HttpServletRequest req, HttpServletResponse rep) throws ServletException, IOException {
@@ -84,6 +81,7 @@ public class FrontController extends HttpServlet {
     protected void processRequest(HttpServletRequest req, HttpServletResponse rep)
             throws ServletException, IOException {
         String prevu = req.getMethod();
+        PrintWriter out = rep.getWriter();
         Map<String, String> paramMap = new HashMap<>();
         boolean ignoreConstraint = false;
         HttpSession sess = req.getSession();
@@ -97,8 +95,8 @@ public class FrontController extends HttpServlet {
         } else {
             String url = req.getRequestURL().toString();
             System.out.println("url passage:"+url);
-            String[] urP = url.split("\\?");
-            String[] urlParts = urP[0].split("/");
+            String[] urP = url.split("\\?"); // separation du lien et des parametres dans le liens
+            String[] urlParts = urP[0].split("/"); // recuperation des differentes parties du lien
             int i = 1;
             String urlTarget = "/" + urlParts[urlParts.length - 1];
             boolean ver = false;
@@ -107,25 +105,25 @@ public class FrontController extends HttpServlet {
                 while (i < urlParts.length) {
                     if (this.urlMap.containsKey(urlTarget)) {
                         Mapping mapping = this.urlMap.get(urlTarget);
-                        if(!mapping.contains(prevu) && !ignoreConstraint){
+                        if(!mapping.contains(prevu) && !ignoreConstraint){//verifie si post ou get 
                             displayError("Erreur de requête : Une requête de type "+prevu+" est attendue", "404", rep);
                             return;
                         }
                         try {
-                            Object obj = executeMethode(mapping, req,prevu,rep,authSessionName,this.urlMap);
+                            Object obj = executeMethode(mapping, req,prevu,rep,authSessionName);
                             if (obj instanceof String) {
-                                if(isJson((String)obj)){
-                                    PrintWriter out = rep.getWriter();
+                                if(isJson((String)obj)){ //si l'objet est au format json
                                     rep.setContentType("application/json");
                                     rep.setCharacterEncoding("UTF-8");
-                                    out.println((String) obj);
                                 }
+                                out.print((String) obj);
                             } else if (obj instanceof ModelView) {
                                 ModelView modelV = (ModelView) obj;
                                 Map<String, Object> map = modelV.getData();
                                 try {
                                     this.viewExist(modelV.getViewUrl());
                                     RequestDispatcher dispat = req.getRequestDispatcher(modelV.getViewUrl());
+                                    System.out.println(modelV.getViewUrl());
                                     for (Map.Entry<String, Object> entry : map.entrySet()) {
                                         String dataName = (String) entry.getKey();
                                         Object data = entry.getValue();
@@ -133,39 +131,17 @@ public class FrontController extends HttpServlet {
                                     }
                                     dispat.forward(req, rep);
                                 } catch (ExceptionFramework e) {
-                                    try{
-                                        String uri = modelV.getViewUrl().split("\\?")[0];
-                                        this.methodExist(uri);
-                                        rep.sendRedirect(modelV.getViewUrl());
-                                        return;
-                                    }catch(ExceptionFramework ex){
-                                        e.printStackTrace();
-                                        ex.printStackTrace();
-                                        displayError(e.getMessage(), e.getCode(), rep);
-                                        return;
-                                    }
-                                }
-                            } else if(obj instanceof Exportation){
-                                Exportation export = (Exportation)obj;
-                                String type = export.getType();
-                                switch (type) {
-                                    case "csv":
-                                        rep.setContentType("text/csv");
-                                        break;
-                                    case "pdf":
-                                        rep.setContentType("application/pdf");
-                                        break;
-                                    default:
-                                        break;
-                                }
-                                rep.setHeader("Content-Disposition", "attachment; filename=\"document." + type + "\"");
-                                try(OutputStream stream = rep.getOutputStream()){
-                                    stream.write(export.getBytes());
-                                    stream.flush();
+                                    // out.print(e.getMessage());
+                                    displayError(e.getMessage(), e.getCode(), rep);
+                                    return;
                                 }
                             }
                         } catch (ExceptionFramework e) {
-                            e.printStackTrace();
+                            // e.printStackTrace();
+                            // RequestDispatcher dispat = req.getRequestDispatcher("erreur.jsp");
+                            // req.setAttribute("erreur",e.getMessage());
+                            // dispat.forward(req,rep);
+                            // // out.println(e.getMessage());
                             displayError(e.getMessage(), e.getCode(), rep);
                             return;
                         }
@@ -177,31 +153,33 @@ public class FrontController extends HttpServlet {
                     i++;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 displayError(e.getMessage(), "400", rep);
                 return;
             }
         }
     }
 
-    public static Object executeMethode(Mapping target,HttpServletRequest req,String prevu,HttpServletResponse rep,String sessionName,Map<String,Mapping> urlMap) throws Exception{
+    public static Object executeMethode(Mapping target,HttpServletRequest req,String prevu,HttpServletResponse rep,String sessionName) throws Exception{
         HttpSession session = req.getSession();
 
+        //recuperation des noms des parametres
         Enumeration<String> paramNames = req.getParameterNames();
         ArrayList<String> parametersNames = new ArrayList<>();
         while(paramNames.hasMoreElements()){
             String paramName = paramNames.nextElement();
-            parametersNames.add(paramName);
+            parametersNames.add(paramName); //stockage des noms dans une liste
         } 
 
-        String className = target.getClassName();
-        String methodeName = target.getMethodName(prevu);
+        
+        String className = target.getClassName(); //nom de la classe contenu dans le mapping
+        String methodeName = target.getMethodName(prevu); //nom de la methode a invoquée
         System.out.println("prevu:"+methodeName);
-        Class<?>cl = Class.forName(className);
+        Class<?>cl = Class.forName(className);//Recuperation de la classe qui va invoquer la methode
 
+        //verification des autorisations pour la classe
         Authentification authM = cl.getAnnotation(Authentification.class);
         System.out.println(sessionName);
-        if(authM != null){
+        if(authM != null){ //verification des authentification
             String[] authorizedRoles = authM.role();
             String role = (String)session.getAttribute(sessionName);
             if(!Scanner.isValidProfil(role,authorizedRoles)){
@@ -209,136 +187,118 @@ public class FrontController extends HttpServlet {
             }
         }
 
-        Method[] mes = cl.getDeclaredMethods();
+        Method[] mes = cl.getDeclaredMethods();//Recuperation de la liste des methodes
         boolean hasAnnot = true;
         String uriError = "";
+        //recherche de la methode correspondante
         for(Method m : mes){
-            if(methodeName.compareTo(m.getName()) == 0){
+            if(methodeName.compareTo(m.getName()) == 0){ //si le nom correspond
                 Method me = m;
                 Authentification auth = me.getAnnotation(Authentification.class);
-                if(auth != null){
+                if(auth != null){ //verification des authentification
                     String[] authorizedRoles = auth.role();
                     String role = (String)session.getAttribute(sessionName);
                     if(!Scanner.isValidProfil(role,authorizedRoles)){
                         throw new AuthException("Insufficient privileges");
                     }
                 }
-                Parameter[] parms = me.getParameters();
-                int countParam = parms.length;
-                Object instance = cl.getDeclaredConstructor().newInstance();
+                Parameter[] parms = me.getParameters(); //recuperation des parametres de la methode
+                int countParam = parms.length; //nombre d'argument de la methode
+                Object instance = cl.getDeclaredConstructor().newInstance(); //instanciation de l'objet qui va executer la methode
                 Object obj = null;
-                boolean isRestAPI = false;
-                if(me.getAnnotation(RestAPI.class) != null){
+                boolean isRestAPI = false; //dit qu'il n'y a pas d'annotation restAPI
+                if(me.getAnnotation(RestAPI.class) != null){ //si il y a l'annotation restAPI
                     isRestAPI = true;
                 }
-                if(countParam >= 1){
+                if(countParam >= 1){ //si la methode possede des parametres
                     ArrayList<Object> paramO = new ArrayList<>();
-                    ArrayList<String>passage = new ArrayList<>();
+                    ArrayList<String>passage = new ArrayList<>(); //pour verifier si on est pas deja passer par le parametre
                     boolean hasError = false;
                     for(Parameter p : parms){
-                        Class<?> paramType = p.getType();
-                        String typeName = paramType.getSimpleName();
+                        Class<?> paramType = p.getType(); //recuperation du type du parametre
+                        String typeName = paramType.getSimpleName(); //type du parametre
                         String annot;
                         if(paramType.getSimpleName().compareTo("MySession") == 0){
                             MySession sess = (MySession)(paramType.getDeclaredConstructor(HttpSession.class).newInstance(session));
                             paramO.add(sess);
                         } else if(paramType.getSimpleName().compareTo("FileMap") == 0){
-                            Object[] fileResult = fileHandling(req, p);
-                            FileMap files = null;
-                            
-                            if(fileResult != null && fileResult.length > 0 && fileResult[0] != null) {
-                                files = (FileMap)fileResult[0];
-                            }
-                            
-                            // Toujours ajouter le FileMap, même s'il est null
+                            FileMap files = (FileMap)fileHandling(req, p)[0];
                             paramO.add(files);
-                        }else if(p.getAnnotation(RequestBody.class) != null){
-                            BufferedReader reader = null;
-                            try{
-                                reader = req.getReader();
-                                Object param = JsonReader.readJson(reader, paramType);
-                                paramO.add(param);
-                            }catch(Exception e){
-                                e.printStackTrace();
-                                throw new BadRequestException("Format du json incorrect");
-                            }finally{
-                                if(reader != null) reader.close();
-                            }
                         }
                         else{
-                            if(p.getAnnotation(Param.class) != null){
-                                annot = p.getAnnotation(Param.class).name();
+                            if(p.getAnnotation(Param.class) != null){ //si le parametre possede une annotation
+                                annot = p.getAnnotation(Param.class).name(); //on prend la valeur de l'annnotation
                             }else{
-                                throw new Exception(" Erreur: pas d'annotation");
+                                throw new Exception("ETU002474 Erreur: pas d'annotation");
+                                // annot = p.getName(); // on prend le nom du parametre
                             } 
 
                             Map<String,ArrayList<String>> errorMessage = new HashMap<>();
                             for(String par : parametersNames){
-                                String[] paramParts = par.split("_");
+                                String[] paramParts = par.split("_");//separation du parametre pour savoir si on a besoin d'un objet
                                 String argName = "";
-                                if(paramParts.length > 1){
-                                    String objName = paramParts[0];
-                                    argName = paramParts[1];
-                                    if(annot.compareTo(objName) == 0){
+                                if(paramParts.length > 1){ //si c'est le cas
+                                    String objName = paramParts[0]; //nom de la classe object
+                                    argName = paramParts[1]; //nom du parametre
+                                    if(annot.compareTo(objName) == 0){ //validite du parametre
                                         if(!passage.contains(annot)){
-                                            Object instanceParam = paramType.getDeclaredConstructor().newInstance();
-                                            paramO.add(instanceParam);
-                                            passage.add(annot);
+                                            Object instanceParam = paramType.getDeclaredConstructor().newInstance(); //instanciation de l'objet
+                                            paramO.add(instanceParam);//ajout de l'objet à la liste des parametre
+                                            passage.add(annot);//marquer comme passer
                                         }
-                                        Object value = null; 
+                                        Object value = null;
                                         try{
                                             Field f = Scanner.takeField(paramType,argName);
-                                            req.setAttribute(par,req.getParameter(par));
+                                            req.setAttribute(par,req.getParameter(par)); //stockage de la valeur en cas de redirection
                                             Annotation[] mAnnots = f.getAnnotations();
                                             for(Annotation ann: mAnnots){
                                                 try{
                                                     value = Scanner.convertParameterValueWithAnnot(paramType, req.getParameter(par), argName,ann,value,mAnnots.length); 
                                                 }catch(Exception e){
+                                                    //stockage des erreur
                                                     hasError = true;
                                                     if(errorMessage.get(par) == null){
                                                         errorMessage.put(par,new ArrayList<>());
                                                     }
                                                     errorMessage.get(par).add(e.getMessage());
                                                 }
+                                                
                                             }
-                                            Object inst = paramO.get(paramO.size() - 1);
-                                            String methName = "set"+argName.substring(0,1).toUpperCase() + argName.substring(1);
+                                            //conversion de la valeur avec des annotations
+                                            Object inst = paramO.get(paramO.size() - 1); //prise du dernier parametre
+                                            String methName = "set"+argName.substring(0,1).toUpperCase() + argName.substring(1); //nom du setteur correspondant
                                             Method set;
                                             if (value instanceof Integer) {
-                                                try{
-                                                    set = paramType.getMethod(methName, int.class); 
-                                                } catch(Exception e){
-                                                    set = paramType.getMethod(methName, value.getClass());
-                                                }
+                                                set = paramType.getMethod(methName, int.class);    
                                             } else{
                                                 set = paramType.getMethod(methName, value.getClass());   
                                             }
                                             set.invoke(inst, value);
+                                            
                                         } catch(Exception e){
-                                            e.printStackTrace();
-                                            displayError(e.getMessage(), "408", rep);
-                                            return null;
+
                                         }
+
+                                        
                                     }
                                 } else{
                                     argName = paramParts[0];
-                                    if(argName.compareTo(annot) == 0){
+                                    if(argName.compareTo(annot) == 0){ // si il y a une correspondance, on stocke la valeur dans une liste
                                         Object value = null;
-                                        value = Scanner.convertParameterValue(paramType, req.getParameter(argName),argName,value);
-                                        paramO.add(value);
+                                        value = Scanner.convertParameterValue(paramType, req.getParameter(argName),argName,value);//Conversion du parametre
+                                        paramO.add(value); //ajout du parametre
                                         break;
                                     }
                                 }
                             }
 
                             if(hasError){
+
                                 if(me.getAnnotation(IfError.class) != null){
                                     uriError = me.getAnnotation(IfError.class).url(); 
                                     System.out.println("direction: "+uriError);         
                                 } else{
-                                    String referer = req.getHeader("referer");
-                                    uriError = Scanner.extractUrl(referer,urlMap);
-                                    System.out.println("error redirect : "+uriError);
+                                    throw new NotFoudException("Impossible de trouver la page");
                                 }
                                 RequestDispatcher dispat = req.getRequestDispatcher(uriError);
                                 req.setAttribute("error",errorMessage);
@@ -349,95 +309,37 @@ public class FrontController extends HttpServlet {
                                     }
                                 };
                                 dispat.forward(wrap,rep);
-                                return null;
                             } else{
                                 uriOrg = "";
                             }
                         }
                     }
-
-                    Object[] p = paramO.toArray();
-                    
-                    System.out.println("=== DEBUG PARAMETRES AVANT INVOCATION ===");
-                    System.out.println("Nombre de paramètres : " + p.length);
-                    for(int idx = 0; idx < p.length; idx++) {
-                        if(p[idx] == null) {
-                            System.out.println("  Param[" + idx + "]: NULL ⚠️");
-                        } else {
-                            System.out.println("  Param[" + idx + "]: " + p[idx].toString() + 
-                                             " (Type: " + p[idx].getClass().getName() + ")");
-                        }
-                    }
-                    System.out.println("==========================================");
-                    
-                    Parameter[] methodParams = me.getParameters();
-                    for(int idx = 0; idx < methodParams.length; idx++) {
-                        Parameter methodParam = methodParams[idx];
-                        
-                        if(methodParam.getType().equals(FileMap.class) || 
-                           methodParam.getType().equals(MySession.class)) {
-                            continue;
-                        }
-                        
-                        if(idx < p.length && p[idx] == null) {
-                            String paramName = "inconnu";
-                            if(methodParam.getAnnotation(Param.class) != null) {
-                                paramName = methodParam.getAnnotation(Param.class).name();
-                            }
-                            
-                            System.err.println("ERREUR: Paramètre requis manquant - " + 
-                                             paramName + " (index " + idx + 
-                                             ", type " + methodParam.getType().getSimpleName() + ")");
-                            throw new BadRequestException("Paramètre requis manquant: " + paramName);
-                        }
-                    }
-                    
+                    Object[] p = paramO.toArray(); //conversion de la liste de valeur en tableau d'objet
                     try{
-                        System.out.println("Invocation de la méthode avec " + p.length + " paramètres");
-                        obj = me.invoke(instance, p);
-                        System.out.println("Méthode exécutée avec succès");
+                        obj = me.invoke(instance,p);
                     }catch(Exception e){
-                        System.err.println("ERREUR lors de l'invocation de la méthode:");
-                        System.err.println("  Méthode: " + methodeName);
-                        System.err.println("  Classe: " + className);
-                        System.err.println("  Nombre params: " + p.length);
-                        
-                        Parameter[] expectedParams = me.getParameters();
-                        System.err.println("  Types attendus vs reçus:");
-                        for(int idx = 0; idx < Math.max(expectedParams.length, p.length); idx++) {
-                            String expected = (idx < expectedParams.length) ? 
-                                            expectedParams[idx].getType().getSimpleName() : "N/A";
-                            String received = (idx < p.length && p[idx] != null) ? 
-                                            p[idx].getClass().getSimpleName() : "NULL";
-                            System.err.println("    [" + idx + "] Attendu: " + expected + 
-                                             " | Reçu: " + received);
-                        }
-                        
-                        e.printStackTrace();
-                        throw new BadRequestException("Erreur lors de l'exécution de la méthode: " + e.getMessage());
+                        throw new BadRequestException(e.getMessage());
                     }
+                     //invocation de la methode avec parametre
                 }
-                else{
+                else{ //sinon invocation de la methode sans parametre
                     try{
                         obj= me.invoke(instance);
                     }catch(Exception e){
-                        e.printStackTrace();
                         throw new BadRequestException(e.getMessage());
                     }
+                    
                 }
-                if(!(obj instanceof String) &&!(obj instanceof ModelView) && !(obj instanceof Exportation)){
-                    String objType = (obj != null) ? obj.getClass().getSimpleName() : "null";
-                    throw new BadRequestException("La methode "+methodeName+" renvoie un objet de type "+objType+".\n Types attendus : ModelView, String, Exportation");
+                if(obj.getClass().getSimpleName().compareTo("String") != 0 && obj.getClass().getSimpleName().compareTo("ModelView") != 0){ //Exception si ce n'est ni un String ni un modelView
+                    throw new BadRequestException("La methode "+methodeName+" renvoie un objet de type "+obj.getClass().getSimpleName()+".\n Types attendus : ModelView, String");
                 }
-                if(isRestAPI){
-                    System.out.println("Est une exportation "+(obj instanceof Exportation));
-                    if(!(obj instanceof Exportation)){
-                        if(obj != null && obj.getClass().getSimpleName().compareTo("ModelView") == 0){
-                            obj = ((ModelView)obj).getData();
-                        }
-                        Gson gson = new Gson();
-                        obj = gson.toJson(obj);
+                if(isRestAPI){//si c'est un restAPI
+                    if(obj.getClass().getSimpleName().compareTo("ModelView") == 0){
+                        
+                        obj = ((ModelView)obj).getData();
                     }
+                    Gson gson = new Gson();
+                    obj = gson.toJson(obj);
                 }
                 return obj;
             }
@@ -445,21 +347,20 @@ public class FrontController extends HttpServlet {
         return null;
     }
 
+    
+    //si la vue exist
     public void viewExist(String viewUrl) throws Exception {
         ArrayList<String> listView = this.urlView;
         if (!listView.contains(viewUrl)) {
             throw new NotFoudException("La page " + viewUrl + " n'existe pas!");
         }
     }
-    
+    //si la methodExist
     public void methodExist(String urlMethod) throws Exception {
         Map<String, Mapping> urlList = this.urlMap;
         String[] urlParts = urlMethod.split("/");
         String urlTarget = "/" + urlParts[urlParts.length - 1];
         int i = 1;
-        if (this.urlMap.containsKey(urlTarget)) {
-            return;
-        }
         while (i < urlParts.length) {
             if (this.urlMap.containsKey(urlTarget)) {
                 return;
@@ -470,6 +371,7 @@ public class FrontController extends HttpServlet {
         throw new NotFoudException("L'url " + urlMethod + " n'est associé à aucune méthode du projet");
     }
 
+    //si une chaine de caractere est au format json
     public static boolean isJson(String value){ 
         try{
             JsonElement jsonElement = JsonParser.parseString(value);
@@ -479,15 +381,18 @@ public class FrontController extends HttpServlet {
         }
     }
 
+    //display de l'erreur (sprint 11)
     protected static void displayError(String error,String code,HttpServletResponse rep) throws IOException,ServletException{
         rep.setContentType("text/html");
         PrintWriter out = rep.getWriter();
 
+        //page 
         out.println("<!DOCTYPE html>");
         out.println("<html>");
         out.println("<head>");
         out.println("<title>Erreur</title>");
 
+        // CSS intégré dans la balise <style>
         out.println("<style>");
         out.println("body { font-family: Arial, sans-serif; background-color: #f0f0f0; }");
         out.println("h1 { color: red; }");
@@ -495,6 +400,7 @@ public class FrontController extends HttpServlet {
         out.println("ul { list-style-type: none; }");
         out.println("li { background-color: #e0e0e0; margin: 5px 0; padding: 10px; border-radius: 5px; }");
         out.println("</style>");
+        //fin style 
 
         out.println("</head>");
         out.println("<body>");
@@ -506,10 +412,9 @@ public class FrontController extends HttpServlet {
         out.println("</html>");
     }
 
+    //recuperation du nom de fichier
     static String getFileName(Part part){
-        if(part == null) return null;
         String disposition = part.getHeader("content-disposition");
-        if(disposition == null) return null;
         for(String content: disposition.split(";")){
             if(content.trim().startsWith("filename")){
                 return content.substring(content.indexOf('=') + 1).trim().replace("\"","");
@@ -517,9 +422,8 @@ public class FrontController extends HttpServlet {
         }
         return null;
     }
-    
+    //recuperation des byte d'un fichier 
     static byte[] getByte(Part part) throws Exception{
-        if(part == null) return new byte[0];
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         InputStream fileContent = null;
         try{
@@ -532,40 +436,37 @@ public class FrontController extends HttpServlet {
         }catch(Exception e){
             e.printStackTrace();
         }finally{
-            if(fileContent != null) fileContent.close();
+            fileContent.close();
         }
         return buffer.toByteArray();
     }
 
+    //Recuperation des infos
     static FileMap getFileInfo(HttpServletRequest req,Parameter p) throws Exception{
         if(p.getType().equals(FileMap.class)){
             Param annotation = p.getAnnotation(Param.class);
-            if(annotation == null) return null;
-            try {
-                Part part = req.getPart(annotation.name());
-                if(part == null) return null;
-                String fileName = getFileName(part);
-                if(fileName == null || fileName.trim().isEmpty()) return null;
-                byte[] b = getByte(part);
-                return new FileMap(fileName, b);
-            } catch(Exception e) {
-                System.out.println("Aucun fichier trouvé pour " + annotation.name());
-                return null;
-            }
+            Part part = req.getPart(annotation.name());
+            String fileName = getFileName(part);
+            byte[] b = getByte(part);
+            return new FileMap(fileName, b);
         }
         return null;
+        
     }
 
+    //gestion des fichiers sprint12
     static Object[] fileHandling(HttpServletRequest req,Parameter param) throws Exception{
         Object[] files = null;
         try{
             FileMap fileInfo = getFileInfo(req, param);
+
             if(fileInfo != null){
                 files = new Object[1];
                 files[0] = fileInfo;
             }
+            
         }catch(Exception e){
-            System.err.println("Erreur lors du traitement du fichier: " + e.getMessage());
+            throw e;
         }
         return files;
     }
