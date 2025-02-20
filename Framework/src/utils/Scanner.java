@@ -17,7 +17,6 @@ import mg.itu.annotation.ControlleurAnnotation;
 import mg.itu.annotation.Post;
 import mg.itu.annotation.Url;
 import mg.itu.annotation.type.*;
-import mg.itu.utils.exception.*;
 
 
 public class Scanner {
@@ -284,25 +283,4 @@ public class Scanner {
         }
         return false;
     }
-
-    public static String extractUrl(String url,Map<String,Mapping> urlMap) throws Exception{
-        String res = "";
-        String[] urP = url.split("\\?"); // separation du lien et des parametres dans le liens
-        String[] urlParts = urP[0].split("/"); // recuperation des differentes parties du lien
-        int i = 1;
-        String urlTarget = "/" + urlParts[urlParts.length - 1];
-        while (i < urlParts.length) {
-            if (urlMap.containsKey(urlTarget)) {
-                res = urlTarget;
-                break;
-            }
-            urlTarget = "/" + urlParts[urlParts.length - (i + 1)] + urlTarget;
-            i++;
-        }
-        if(res.equals("")) throw new NotFoudException("L'url "+urlTarget+" n'est associé à aucune methode");
-        String add = "";
-        if(urP.length > 1) add = "?"+urP[1];
-        return res+add;
-    }
-
 }
